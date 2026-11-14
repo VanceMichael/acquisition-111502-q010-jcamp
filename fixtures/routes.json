@@ -1,0 +1,11 @@
+{
+  "/files/spectra.jdx": {
+    "file": "spectra.jdx",
+    "mediaType": "application/octet-stream",
+    "partialFile": "spectra.jdx.partial"
+  },
+  "/deliveries": {
+    "file": "delivery.json",
+    "mediaType": "application/json"
+  }
+}

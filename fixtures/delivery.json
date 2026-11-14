@@ -1,0 +1,15 @@
+{
+  "deliveryId": "delivery-1",
+  "revision": "r1",
+  "roots": [
+    {
+      "href": "/files/spectra.jdx"
+    }
+  ],
+  "resources": [
+    {
+      "href": "/files/spectra.jdx",
+      "name": "spectra.jdx"
+    }
+  ]
+}

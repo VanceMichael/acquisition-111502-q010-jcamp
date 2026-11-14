@@ -1,0 +1,29 @@
+[
+  {
+    "kind": "spectrum-block",
+    "value": {
+      "title": "sample-a",
+      "declaredPoints": 5,
+      "receivedPoints": 5,
+      "yUnits": "ABSORBANCE"
+    }
+  },
+  {
+    "kind": "spectral-point",
+    "value": {
+      "block": "sample-a",
+      "index": 4,
+      "x": 4,
+      "y": 1.4
+    }
+  },
+  {
+    "kind": "spectrum-block",
+    "value": {
+      "title": "sample-b",
+      "declaredPoints": 2,
+      "receivedPoints": 2,
+      "yUnits": "TRANSMITTANCE"
+    }
+  }
+]
