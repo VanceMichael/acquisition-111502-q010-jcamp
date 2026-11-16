@@ -121,6 +121,28 @@ export class Archive {
     });
   }
 
+  async addIssues(collectionId, issues) {
+    identifier(collectionId);
+    if (!Array.isArray(issues)) throw Object.assign(new Error('invalid_issues'), { status: 400 });
+    for (const issue of issues) {
+      if (!issue || typeof issue.reason !== 'string' || !issue.reason || typeof issue.location !== 'string' || !issue.location) {
+        throw Object.assign(new Error('invalid_issue'), { status: 400 });
+      }
+    }
+    return this.serialized(async () => {
+      const collection = await this.collection(collectionId);
+      let changed = false;
+      for (const issue of issues) {
+        if (!collection.issues.some(existing => JSON.stringify(existing) === JSON.stringify(issue))) {
+          collection.issues.push(issue);
+          changed = true;
+        }
+      }
+      if (changed) await this.saveJson(join(this.directory, 'collections', collectionId + '.json'), collection);
+      return collection.issues;
+    });
+  }
+
   async list() {
     return (await readdir(join(this.directory, 'collections'))).filter(name => name.endsWith('.json')).map(name => name.slice(0, -5));
   }

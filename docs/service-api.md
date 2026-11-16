@@ -2,7 +2,7 @@
 
 人工资料接收保持兼容。POST /intakes 的 JSON 字段为 collectionId、sourceKey、revision、mediaType、contentBase64；返回 receiptId、sha256、byteLength 和轻量 summary。相同资料集、来源键与修订对应同一收件，字节不同返回 409。GET /receipts/{receiptId} 可读元数据，GET /receipts/{receiptId}/body 返回原字节。
 
-POST /acquisitions 接受 collectionId、entry 和可选 options，entry 是授权来源完整地址。当前只领取入口的原始内容并登记收件，返回 collectionId 和 receiptIds。自动解释沿用此入口，所有自动取得的依赖也应保留真实原文收件，不用人工造 records 代替自动接入。来源访问只限启动时冻结的 origin，不能访问其他主机或执行交付件。
+POST /acquisitions 接受 collectionId、entry 和可选 options，entry 是授权来源完整地址。服务领取入口原始内容并登记收件；若入口是交付索引（含 deliveryId 与 roots 的 JSON），会按 roots 继续领取同包资源，每个自动取得的依赖同样保留真实原文收件。随后对 JCAMP-DX 正文自动解释：LINK 多段各自独立解释，支持 AFFN/PAC/SQZ/DIF/DUP 与 XYDATA、XYPOINTS；差分跨行检查点只复核不重复计点；缩放只用来源 XFACTOR/YFACTOR。解释产出 spectrum-block 与 spectral-point 记录，provenance 指回原文件行与记号位置；不支持的表格语法、损坏子块、点数不闭合等情况写入 issues，保留原表达与影响范围，不猜值凑点。返回 collectionId 和 receiptIds。不用人工造 records 代替自动接入。来源访问只限启动时冻结的 origin，不能访问其他主机或执行交付件。
 
 GET /collections 返回资料集列表，GET /collections/{collectionId} 返回 collectionId、receiptIds、records、issues。结构化 records 的每项包含 kind、key、value、provenance；key 由各来源身份语义决定，不要求特定内部编码。provenance 是含 receiptId 与 location 的数组，location 可采用字节区间、原行列、JSON Pointer 等可复查定位。issues 每项包含 reason、location，至少能说明原因、受影响范围和已有来源依据，不能用静默丢弃表示未知。缺失资料不等于来源明确删除。
 
