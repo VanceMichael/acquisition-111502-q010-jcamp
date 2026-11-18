@@ -1,7 +1,8 @@
 import { createServer } from 'node:http';
-import { Archive } from './archive.mjs';
+import { Archive, identifier } from './archive.mjs';
 import { retrieve } from './transport.mjs';
 import { summarize } from './summary.mjs';
+import { deliveryLinks, interpretJcamp, isJcampText } from './interpret.mjs';
 
 export function json(response, status, value) {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
@@ -53,10 +54,59 @@ export async function createService({ directory, allowedOrigin }) {
       if (request.method === 'POST' && url.pathname === '/acquisitions') {
         const body = await requestBody(request);
         if (typeof body.entry !== 'string') throw Object.assign(new Error('missing_entry'), { status: 400 });
-        const result = await retrieve(body.entry, allowedOrigin);
-        const receipt = await archive.receive({ collectionId: body.collectionId, sourceKey: body.entry, revision: result.revision,
-          mediaType: result.mediaType, bytes: result.bytes, summary: summarize(result.bytes, result.mediaType) });
-        return json(response, 201, { collectionId: body.collectionId, receiptIds: [receipt.receiptId] });
+        const collectionId = identifier(body.collectionId);
+        const receiptIds = [];
+        const issues = [];
+
+        // 先领取入口原文，再按交付索引领取每个链接；每个依赖都留下真实原文收件。
+        const acquire = async (entry) => {
+          const result = await retrieve(entry, allowedOrigin);
+          const receipt = await archive.receive({
+            collectionId, sourceKey: entry, revision: result.revision,
+            mediaType: result.mediaType, bytes: result.bytes,
+            summary: summarize(result.bytes, result.mediaType)
+          });
+          if (!receiptIds.includes(receipt.receiptId)) receiptIds.push(receipt.receiptId);
+          return { receipt, bytes: result.bytes };
+        };
+
+        const interpret = async (bytes, receipt) => {
+          if (!isJcampText(bytes)) return;
+          try {
+            const parsed = interpretJcamp(bytes, receipt.receiptId);
+            for (const record of parsed.records) await archive.addRecord(collectionId, record);
+            issues.push(...parsed.issues);
+          } catch (error) {
+            issues.push({
+              receiptId: receipt.receiptId,
+              reason: 'interpretation-failed:' + (error?.message || 'unknown'),
+              location: 'byte:0-' + Math.max(bytes.length - 1, 0)
+            });
+          }
+        };
+
+        const entry = await acquire(body.entry);
+        let links = null;
+        try {
+          links = deliveryLinks(JSON.parse(entry.bytes.toString('utf8')), body.entry);
+        } catch {}
+        if (links) {
+          for (const link of links.links) {
+            try {
+              const acquired = await acquire(link);
+              await interpret(acquired.bytes, acquired.receipt);
+            } catch (error) {
+              issues.push({
+                reason: 'dependency-retrieval-failed:' + (error?.message || 'unknown'),
+                location: link
+              });
+            }
+          }
+        } else {
+          await interpret(entry.bytes, entry.receipt);
+        }
+        await archive.addIssues(collectionId, issues);
+        return json(response, 201, { collectionId, receiptIds });
       }
       return json(response, 404, { error: 'not_found' });
     } catch (error) {
